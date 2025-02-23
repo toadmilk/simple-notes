@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import remarkGfm from "remark-gfm";
 
 export const Notes = () => {
   const [notes] = api.note.getAll.useSuspenseQuery();
@@ -75,14 +78,14 @@ export const Notes = () => {
   });
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-6">
+    <div className="mx-auto w-full max-w-md space-y-6">
       {/* Create Note Form */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           createNote.mutate({ title, content });
         }}
-        className="bg-gray-900 p-4 rounded-lg shadow-md space-y-4"
+        className="space-y-4 rounded-lg bg-gray-900 p-4 shadow-md"
       >
         <input
           type="text"
@@ -99,14 +102,18 @@ export const Notes = () => {
         />
         <button
           type="submit"
-          className="w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold transition hover:bg-blue-700 flex justify-center items-center"
+          className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-semibold transition hover:bg-blue-700"
           disabled={createNote.isPending}
         >
-          {createNote.isPending ? <Loader2 className="animate-spin" /> : "Submit"}
+          {createNote.isPending ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            "Submit"
+          )}
         </button>
       </form>
       {/* Search and Sort Inputs */}
-      <div className="bg-gray-900 p-4 rounded-lg shadow-md space-y-4">
+      <div className="space-y-4 rounded-lg bg-gray-900 p-4 shadow-md">
         <div className="flex gap-4">
           <input
             type="text"
@@ -128,7 +135,10 @@ export const Notes = () => {
       {/* Notes */}
       <div className="space-y-4">
         {sortedNotes?.map((note) => (
-          <div key={note.id} className="bg-gray-900 p-4 rounded-lg shadow-md space-y-2">
+          <div
+            key={note.id}
+            className="space-y-2 rounded-lg bg-gray-900 p-4 shadow-md"
+          >
             {editingId === note.id ? (
               <>
                 <input
@@ -150,17 +160,33 @@ export const Notes = () => {
                     Cancel
                   </button>
                   <button
-                    onClick={() => editNote.mutate({ id: note.id, title: editedTitle, content: editedContent })}
-                    className="w-full rounded-lg bg-green-600 px-4 py-2 font-semibold transition hover:bg-green-700 flex justify-center items-center"
+                    onClick={() =>
+                      editNote.mutate({
+                        id: note.id,
+                        title: editedTitle,
+                        content: editedContent,
+                      })
+                    }
+                    className="flex w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2 font-semibold transition hover:bg-green-700"
                   >
-                    {editNote.isPending ? <Loader2 className="animate-spin" /> : "Save"}
+                    {editNote.isPending ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      "Save"
+                    )}
                   </button>
                 </div>
               </>
             ) : (
               <>
                 <h3 className="text-lg font-semibold">{note.title}</h3>
-                <p>{note.content}</p>
+                <div className="prose prose-invert">
+                  <ReactMarkdown
+                    rehypePlugins={[rehypeRaw]}
+                    remarkPlugins={[remarkGfm]}
+                    children={note.content}
+                  />
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
@@ -174,7 +200,7 @@ export const Notes = () => {
                   </button>
                   <button
                     onClick={() => deleteNote.mutate({ id: note.id })}
-                    className="rounded-lg bg-red-600 px-4 py-2 font-semibold transition hover:bg-red-700 flex justify-center items-center"
+                    className="flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 font-semibold transition hover:bg-red-700"
                   >
                     {deletingId === note.id ? (
                       <Loader2 className="animate-spin" />
