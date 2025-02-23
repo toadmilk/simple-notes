@@ -6,6 +6,11 @@ import { Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+import { Button } from "~/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "~/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle, } from "~/components/ui/card";
+import { Textarea } from "~/components/ui/textarea";
+import { Input } from "~/components/ui/input";
 
 export const Notes = () => {
   const [notes] = api.note.getAll.useSuspenseQuery();
@@ -79,141 +84,87 @@ export const Notes = () => {
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
-      {/* Create Note Form */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          createNote.mutate({ title, content });
-        }}
-        className="space-y-4 rounded-lg bg-gray-900 p-4 shadow-md"
-      >
-        <input
-          type="text"
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-lg px-4 py-2 text-black"
-        />
-        <textarea
-          placeholder="Content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="w-full rounded-lg px-4 py-2 text-black"
-        />
-        <button
-          type="submit"
-          className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-semibold transition hover:bg-blue-700"
-          disabled={createNote.isPending}
-        >
-          {createNote.isPending ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            "Submit"
-          )}
-        </button>
-      </form>
-      {/* Search and Sort Inputs */}
-      <div className="space-y-4 rounded-lg bg-gray-900 p-4 shadow-md">
-        <div className="flex gap-4">
-          <input
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <Input
+            type="text"
+            placeholder="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full rounded-lg px-4 py-2"
+          />
+          <Textarea
+            placeholder="Content"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full rounded-lg px-4 py-2"
+          />
+          <Button
+            type="submit"
+            className="w-full"
+            onClick={() => createNote.mutate({ title, content })}
+            disabled={createNote.isPending || !title.trim() || !content.trim()}
+          >
+            {createNote.isPending ? <Loader2 className="animate-spin" /> : "Submit"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="flex justify-between gap-2 p-4">
+          <Input
             type="text"
             placeholder="Search Notes"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg px-4 py-2 text-black"
+            className="w-full rounded-lg px-4 py-2"
           />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "title" | "date")}
-            className="rounded-lg px-4 py-2 text-black"
-          >
-            <option value="title">Sort by Title</option>
-            <option value="date">Sort by Date</option>
-          </select>
-        </div>
-      </div>
-      {/* Notes */}
-      <div className="space-y-4">
-        {sortedNotes?.map((note) => (
-          <div
-            key={note.id}
-            className="space-y-2 rounded-lg bg-gray-900 p-4 shadow-md"
-          >
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as "title" | "date")}>
+            <SelectTrigger className="h-full">
+              <SelectValue placeholder="Sort By" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="title">Sort by Title</SelectItem>
+              <SelectItem value="date">Sort by Date</SelectItem>
+            </SelectContent>
+          </Select>
+
+        </CardContent>
+      </Card>
+
+      {sortedNotes?.map((note) => (
+        <Card key={note.id}>
+          <CardHeader>
+            <CardTitle>{editingId === note.id ? <Input value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full" /> : note.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
             {editingId === note.id ? (
-              <>
-                <input
-                  type="text"
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  className="w-full rounded-lg px-4 py-2 text-black"
-                />
-                <textarea
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  className="w-full rounded-lg px-4 py-2 text-black"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="w-full rounded-lg bg-gray-600 px-4 py-2 font-semibold transition hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() =>
-                      editNote.mutate({
-                        id: note.id,
-                        title: editedTitle,
-                        content: editedContent,
-                      })
-                    }
-                    className="flex w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2 font-semibold transition hover:bg-green-700"
-                  >
-                    {editNote.isPending ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      "Save"
-                    )}
-                  </button>
-                </div>
-              </>
+              <Textarea value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="w-full" />
             ) : (
-              <>
-                <h3 className="text-lg font-semibold">{note.title}</h3>
-                <div className="prose prose-invert">
-                  <ReactMarkdown
-                    rehypePlugins={[rehypeRaw]}
-                    remarkPlugins={[remarkGfm]}
-                    children={note.content}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingId(note.id);
-                      setEditedTitle(note.title);
-                      setEditedContent(note.content);
-                    }}
-                    className="rounded-lg bg-yellow-600 px-4 py-2 font-semibold transition hover:bg-yellow-700"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteNote.mutate({ id: note.id })}
-                    className="flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 font-semibold transition hover:bg-red-700"
-                  >
-                    {deletingId === note.id ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      "Delete"
-                    )}
-                  </button>
-                </div>
-              </>
+              <div className="prose dark:prose-invert">
+                <ReactMarkdown rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]}>{note.content}</ReactMarkdown>
+              </div>
             )}
-          </div>
-        ))}
-      </div>
+            <div className="flex gap-2 mt-2">
+              {editingId === note.id ? (
+                <>
+                  <Button onClick={() => setEditingId(null)} variant="secondary">Cancel</Button>
+                  <Button onClick={() => editNote.mutate({ id: note.id, title: editedTitle, content: editedContent })}>
+                    {editNote.isPending ? <Loader2 className="animate-spin" /> : "Save"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={() => { setEditingId(note.id); setEditedTitle(note.title); setEditedContent(note.content); }}>Edit</Button>
+                  <Button onClick={() => deleteNote.mutate({ id: note.id })} className="dark:bg-red-600 dark:hover:bg-red-700 bg-red-500 hover:bg-red-600">
+                    {deletingId === note.id ? <Loader2 className="animate-spin" /> : "Delete"}
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 };
