@@ -13,7 +13,7 @@
 
 ## Quick Start
 1. Clone the repo.
-2. Add env vars: `DATABASE_URL` and `OPENROUTER_API_KEY`
-3. Run: `./start-database.sh`.
+2. Run: `./start-database.sh`.
+3. Add env vars: `DATABASE_URL` and `OPENROUTER_API_KEY`
 4. Run: `next dev`.
 5. Link: [https://localhost](http://localhost:3000/)
