@@ -51,11 +51,12 @@ export const noteRouter = createTRPCRouter({
     return ctx.db.note.findMany();
   }),
 
+  // Content is optional
   generateContent: publicProcedure
     .input(z.object({
       newNote: z.object({
         title: z.string().min(1),
-        content: z.string().min(1),
+        content: z.string().optional(),
       })
     }))
     .mutation(async ({ ctx, input }) => {
@@ -64,7 +65,7 @@ export const noteRouter = createTRPCRouter({
         messages: [
           {
             role: "user",
-            content: `Finish/improve the content for a note with the title "${input.newNote.title}" and the following content: "${input.newNote.content}".
+            content: `Finish/improve the content for a note with the title "${input.newNote.title}" and the following content: "${input.newNote.content ? input.newNote.content : "NO CONTENT PROVIDED"}".
             If unclear try to guess what the user would like to add to the note. Response should be the direct content, do not write the title or any other information.
             Also please return in markdown format if possible.`,
           },

@@ -67,6 +67,8 @@ export const Notes = () => {
           note.id === context?.tempId ? { ...data } : note,
         ),
       );
+      setTitle("");
+      setContent("");
     },
     onError: (_err, _newNote, context) => {
       if (context?.previousNotes) {
@@ -179,7 +181,7 @@ export const Notes = () => {
                 <Button
                   onClick={() => handleAIGenerateContent({ title, content })}
                   disabled={
-                    !title.trim() || !content.trim() || createNote.isPending
+                    !title.trim() || createNote.isPending
                   }
                 >
                   {aiLoading ? (
