@@ -6,9 +6,16 @@ import { Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+
 import { Button } from "~/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "~/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle, } from "~/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Textarea } from "~/components/ui/textarea";
 import { Input } from "~/components/ui/input";
 
@@ -25,11 +32,33 @@ export const Notes = () => {
   const [editedContent, setEditedContent] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  let tempIdCounter = -1;
+
   const createNote = api.note.create.useMutation({
-    onSuccess: async () => {
-      await utils.note.invalidate();
-      setTitle("");
-      setContent("");
+    onMutate: async (newNote) => {
+      await utils.note.getAll.cancel();
+      const previousNotes = utils.note.getAll.getData();
+
+      const tempId = tempIdCounter--;
+
+      utils.note.getAll.setData(undefined, (oldNotes) => [
+        ...(oldNotes ?? []),
+        { ...newNote, id: tempId, createdAt: new Date(), updatedAt: new Date() },
+      ]);
+
+      return { previousNotes, tempId };
+    },
+    onSuccess: (data, _variables, context) => {
+      utils.note.getAll.setData(undefined, (oldNotes) =>
+        oldNotes?.map((note) =>
+          note.id === context?.tempId ? { ...data } : note,
+        ),
+      );
+    },
+    onError: (_err, _newNote, context) => {
+      if (context?.previousNotes) {
+        utils.note.getAll.setData(undefined, context.previousNotes);
+      }
     },
   });
 
@@ -65,13 +94,13 @@ export const Notes = () => {
     },
     onError: async () => {
       setDeletingId(null);
-    }
+    },
   });
 
   const filteredNotes = notes?.filter(
     (note) =>
       note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchTerm.toLowerCase())
+      note.content.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const sortedNotes = filteredNotes?.sort((a, b) => {
@@ -81,6 +110,11 @@ export const Notes = () => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
   });
+
+  const shouldGrayOut = (noteId: number) => {
+    // If the note has a negative ID, it's a temporary note
+    return noteId < 0 || deletingId === noteId;
+  }
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
@@ -105,7 +139,11 @@ export const Notes = () => {
             onClick={() => createNote.mutate({ title, content })}
             disabled={createNote.isPending || !title.trim() || !content.trim()}
           >
-            {createNote.isPending ? <Loader2 className="animate-spin" /> : "Submit"}
+            {createNote.isPending ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              "Create Note"
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -119,7 +157,10 @@ export const Notes = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-lg px-4 py-2"
           />
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as "title" | "date")}>
+          <Select
+            value={sortBy}
+            onValueChange={(value) => setSortBy(value as "title" | "date")}
+          >
             <SelectTrigger className="h-full">
               <SelectValue placeholder="Sort By" />
             </SelectTrigger>
@@ -128,36 +169,86 @@ export const Notes = () => {
               <SelectItem value="date">Sort by Date</SelectItem>
             </SelectContent>
           </Select>
-
         </CardContent>
       </Card>
 
       {sortedNotes?.map((note) => (
-        <Card key={note.id}>
+        <Card key={note.id} className={shouldGrayOut(note.id) ? "opacity-50" : ""}>
           <CardHeader>
-            <CardTitle>{editingId === note.id ? <Input value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full" /> : note.title}</CardTitle>
+            <CardTitle>
+              {editingId === note.id ? (
+                <Input
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  className="w-full"
+                />
+              ) : (
+                note.title
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {editingId === note.id ? (
-              <Textarea value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="w-full" />
+              <Textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full"
+              />
             ) : (
               <div className="prose dark:prose-invert">
-                <ReactMarkdown rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]}>{note.content}</ReactMarkdown>
+                <ReactMarkdown
+                  rehypePlugins={[rehypeRaw]}
+                  remarkPlugins={[remarkGfm]}
+                >
+                  {note.content}
+                </ReactMarkdown>
               </div>
             )}
-            <div className="flex gap-2 mt-2">
+            <div className="mt-2 flex gap-2">
               {editingId === note.id ? (
                 <>
-                  <Button onClick={() => setEditingId(null)} variant="secondary">Cancel</Button>
-                  <Button onClick={() => editNote.mutate({ id: note.id, title: editedTitle, content: editedContent })}>
-                    {editNote.isPending ? <Loader2 className="animate-spin" /> : "Save"}
+                  <Button
+                    onClick={() => setEditingId(null)}
+                    variant="secondary"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      editNote.mutate({
+                        id: note.id,
+                        title: editedTitle,
+                        content: editedContent,
+                      })
+                    }
+                  >
+                    {editNote.isPending ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      "Save"
+                    )}
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button onClick={() => { setEditingId(note.id); setEditedTitle(note.title); setEditedContent(note.content); }}>Edit</Button>
-                  <Button onClick={() => deleteNote.mutate({ id: note.id })} className="dark:bg-red-600 dark:hover:bg-red-700 bg-red-500 hover:bg-red-600">
-                    {deletingId === note.id ? <Loader2 className="animate-spin" /> : "Delete"}
+                  <Button
+                    onClick={() => {
+                      setEditingId(note.id);
+                      setEditedTitle(note.title);
+                      setEditedContent(note.content);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => deleteNote.mutate({ id: note.id })}
+                    className="bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
+                  >
+                    {deletingId === note.id ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      "Delete"
+                    )}
                   </Button>
                 </>
               )}
